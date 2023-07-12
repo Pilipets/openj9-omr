@@ -96,6 +96,10 @@ MM_MarkingScheme::initialize(MM_EnvironmentBase *env)
 		goto error_no_memory;
 	}
 
+	Assert_MM_true(_dump_fout != nullptr);
+	_dump_last_time = _dump_last_id = _dump_now = 0;
+	_dump_fout = fopen(("/tmp/counter_stats" + std::to_string(rand()) + ".txt").c_str());
+
 	return _delegate.initialize(env, this);
 
 error_no_memory:
@@ -108,6 +112,9 @@ error_no_memory:
 void
 MM_MarkingScheme::tearDown(MM_EnvironmentBase *env)
 {
+	fclose(_dump_fout);
+	_dump_fout = nullptr;
+
 	if (_markMap) {
 		_markMap->kill(env);
 		_markMap = NULL;
@@ -176,6 +183,23 @@ MM_MarkingScheme::mainSetupForGC(MM_EnvironmentBase *env)
 	_workPackets->reset(env);
 
 	_delegate.mainSetupForGC(env);
+
+	auto cur_time = std::time(nullptr);
+	if (cur_time - _dump_last_time > 5)
+	{
+		_dump_now = true;
+		_dump_last_time = cur_time;
+		// printf(
+		fprintf(_dump_fout,
+			"\nMy log: Dump Snapshot #%d\n", _dump_last_id++);
+	}
+	else
+	{
+		_dump_now = false;
+		// printf(
+		fprintf(_dump_fout,
+			"\nMy log: Skipping Snapshot #%d\n", _dump_last_id);
+	}
 }
 
 /**

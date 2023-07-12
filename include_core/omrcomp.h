@@ -551,10 +551,10 @@ typedef struct U_128 {
 #if !defined(VMINLINE)
 #define VMINLINE VMINLINE_ALWAYS
 #endif
-#if defined(DEBUG)
+// #if defined(DEBUG)
 #undef VMINLINE
 #define VMINLINE
-#endif
+// #endif
 
 /* DDR cannot parse __builtin_expect */
 #if defined(TYPESTUBS_H)

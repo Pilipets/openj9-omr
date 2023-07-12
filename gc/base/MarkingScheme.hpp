@@ -38,6 +38,10 @@
 #include "ObjectScannerState.hpp"
 #include "WorkStack.hpp"
 
+#include <thread>
+#include <ctime>
+#include <cstdio>
+
 /**
  * @todo Provide class documentation
  */
@@ -56,6 +60,12 @@ protected:
 	MM_WorkPackets *_workPackets;
 	void *_heapBase;
 	void *_heapTop;
+
+private:
+	std::time_t _dump_last_time = 0;
+	int _dump_last_id = 0;
+	bool _dump_now = false;
+	FILE* _dump_fout = nullptr;
 
 public:
 
@@ -137,6 +147,23 @@ public:
 	inlineMarkObjectNoCheck(MM_EnvironmentBase *env, omrobjectptr_t objectPtr, bool leafType = false)
 	{
 		assertSaneObjectPtr(env, objectPtr);
+
+		if (_dump_now)
+		{
+			J9Class *clazz = J9GC_J9OBJECT_CLAZZ_CMP(objectPtr, env->compressObjectReferences());
+			U_32 *accessCount = (U_32*)((U_8 *)(objectPtr) + clazz->accessCountOffset);
+			if (*accessCount > 0)
+			{
+				//printf(
+				fprintf(_dump_fout,
+					"My log: th=%zu, class=%.*s, ptr=%p, cnt=%u\n",
+					std::hash<std::thread::id>()(std::this_thread::get_id()),
+					J9UTF8_LENGTH(J9ROMCLASS_CLASSNAME(clazz->romClass)),
+					J9UTF8_DATA(J9ROMCLASS_CLASSNAME(clazz->romClass)),
+					objectPtr,
+					*accessCount);
+			}
+		}
 
 		/* If bit not already set in mark map then set it */
 		if (!_markMap->atomicSetBit(objectPtr)) {
