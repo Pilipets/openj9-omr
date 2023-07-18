@@ -41,6 +41,14 @@
 #include <thread>
 #include <ctime>
 #include <cstdio>
+#include <memory>
+
+struct FILECloser {
+    void operator()(FILE* file) const {
+		printf("My log: filecloser\n");
+		fclose(file);
+    }
+};
 
 /**
  * @todo Provide class documentation
@@ -66,6 +74,7 @@ private:
 	int _dump_last_id = 0;
 	bool _dump_now = false;
 	FILE* _dump_fout = nullptr;
+	std::unique_ptr<FILE, FILECloser> _dump_ptr;
 
 public:
 
@@ -150,18 +159,53 @@ public:
 
 		if (_dump_now)
 		{
+			U_32 *accessCount;
+
 			J9Class *clazz = J9GC_J9OBJECT_CLAZZ_CMP(objectPtr, env->compressObjectReferences());
-			U_32 *accessCount = (U_32*)((U_8 *)(objectPtr) + clazz->accessCountOffset);
-			if (*accessCount > 0)
+			if (clazz->accessCountOffset == (UDATA)-1)
 			{
-				//printf(
-				fprintf(_dump_fout,
-					"My log: th=%zu, class=%.*s, ptr=%p, cnt=%u\n",
-					std::hash<std::thread::id>()(std::this_thread::get_id()),
-					J9UTF8_LENGTH(J9ROMCLASS_CLASSNAME(clazz->romClass)),
-					J9UTF8_DATA(J9ROMCLASS_CLASSNAME(clazz->romClass)),
-					objectPtr,
-					*accessCount);
+				// dealing with arrays
+
+				if (env->compressObjectReferences())
+				{
+					U_32 size = ((J9IndexableObjectContiguousCompressed *)objectPtr)->size;
+					if (0 == size) accessCount = &((J9IndexableObjectDiscontiguousCompressed *)objectPtr)->accessCount;
+					else accessCount = &((J9IndexableObjectContiguousCompressed *)objectPtr)->accessCount;
+				}
+				else
+				{
+					U_32 size = ((J9IndexableObjectContiguousFull *)objectPtr)->size;
+					if (0 == size) accessCount = &((J9IndexableObjectDiscontiguousFull *)objectPtr)->accessCount;
+					else accessCount = &((J9IndexableObjectContiguousFull *)objectPtr)->accessCount;
+				}
+
+				if (*accessCount > 0)
+				{
+					//printf(
+					fprintf(_dump_fout,
+						"My log array: th=%zu, class=%.*s, ptr=%p, cnt=%u\n",
+						std::hash<std::thread::id>()(std::this_thread::get_id()),
+						J9UTF8_LENGTH(J9ROMCLASS_CLASSNAME(((J9ArrayClass*)clazz)->componentType->romClass)),
+						J9UTF8_DATA(J9ROMCLASS_CLASSNAME(((J9ArrayClass*)clazz)->componentType->romClass)),
+						objectPtr,
+						*accessCount);
+				}
+			}
+			else
+			{
+				accessCount = (U_32*)((U_8 *)(objectPtr) + clazz->accessCountOffset);
+
+				if (*accessCount > 0)
+				{
+					//printf(
+					fprintf(_dump_fout,
+						"My log obj: th=%zu, class=%.*s, ptr=%p, cnt=%u\n",
+						std::hash<std::thread::id>()(std::this_thread::get_id()),
+						J9UTF8_LENGTH(J9ROMCLASS_CLASSNAME(clazz->romClass)),
+						J9UTF8_DATA(J9ROMCLASS_CLASSNAME(clazz->romClass)),
+						objectPtr,
+						*accessCount);
+				}
 			}
 		}
 
