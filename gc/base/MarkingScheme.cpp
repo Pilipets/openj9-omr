@@ -193,6 +193,7 @@ MM_MarkingScheme::mainSetupForGC(MM_EnvironmentBase *env)
 		// printf(
 		fprintf(_dump_fout,
 			"\n My log: Dump Snapshot #%d\n", _dump_last_id++);
+		printf("\n My log: Dump Snapshot #%d\n", _dump_last_id++);
 	}
 	else
 	{
@@ -200,6 +201,7 @@ MM_MarkingScheme::mainSetupForGC(MM_EnvironmentBase *env)
 		// printf(
 		fprintf(_dump_fout,
 			"\n My log: Skipping Snapshot #%d\n", _dump_last_id);
+		printf("\n My log: Skipping Snapshot #%d\n", _dump_last_id);
 	}
 }
 

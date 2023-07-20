@@ -157,13 +157,14 @@ public:
 	{
 		assertSaneObjectPtr(env, objectPtr);
 
-		if (_dump_now)
+		if (true)
 		{
 			U_32 *accessCount;
 
 			J9Class *clazz = J9GC_J9OBJECT_CLAZZ_CMP(objectPtr, env->compressObjectReferences());
 			if (clazz->accessCountOffset == (UDATA)-1)
 			{
+				assert(J9ROMCLASS_IS_ARRAY(clazz->romClass));
 				// dealing with arrays
 
 				if (env->compressObjectReferences())
@@ -179,11 +180,21 @@ public:
 					else accessCount = &((J9IndexableObjectContiguousFull *)objectPtr)->accessCount;
 				}
 
-				if (*accessCount > 0)
+				J9UTF8* romClassName = J9ROMCLASS_CLASSNAME(((J9ArrayClass*)clazz)->componentType->romClass);
+				if (J9UTF8_LITERAL_EQUALS(J9UTF8_DATA(romClassName), J9UTF8_LENGTH(romClassName), "InnerClass") || J9UTF8_LITERAL_EQUALS(J9UTF8_DATA(romClassName), J9UTF8_LENGTH(romClassName), "MainClass"))
 				{
+					if (_dump_now) {
 					//printf(
 					fprintf(_dump_fout,
 						"My log array: th=%zu, class=%.*s, ptr=%p, cnt=%u\n",
+						std::hash<std::thread::id>()(std::this_thread::get_id()),
+						J9UTF8_LENGTH(J9ROMCLASS_CLASSNAME(((J9ArrayClass*)clazz)->componentType->romClass)),
+						J9UTF8_DATA(J9ROMCLASS_CLASSNAME(((J9ArrayClass*)clazz)->componentType->romClass)),
+						objectPtr,
+						*accessCount);
+					}
+
+					printf("My log array: th=%zu, class=%.*s, ptr=%p, cnt=%u\n",
 						std::hash<std::thread::id>()(std::this_thread::get_id()),
 						J9UTF8_LENGTH(J9ROMCLASS_CLASSNAME(((J9ArrayClass*)clazz)->componentType->romClass)),
 						J9UTF8_DATA(J9ROMCLASS_CLASSNAME(((J9ArrayClass*)clazz)->componentType->romClass)),
@@ -193,13 +204,24 @@ public:
 			}
 			else
 			{
+				assert(!J9ROMCLASS_IS_ARRAY(clazz->romClass));
 				accessCount = (U_32*)((U_8 *)(objectPtr) + clazz->accessCountOffset);
 
-				if (*accessCount > 0)
+				J9UTF8* romClassName = J9ROMCLASS_CLASSNAME(clazz->romClass);
+				if (J9UTF8_LITERAL_EQUALS(J9UTF8_DATA(romClassName), J9UTF8_LENGTH(romClassName), "InnerClass") || J9UTF8_LITERAL_EQUALS(J9UTF8_DATA(romClassName), J9UTF8_LENGTH(romClassName), "MainClass"))
 				{
+					if (_dump_now) {
 					//printf(
 					fprintf(_dump_fout,
 						"My log obj: th=%zu, class=%.*s, ptr=%p, cnt=%u\n",
+						std::hash<std::thread::id>()(std::this_thread::get_id()),
+						J9UTF8_LENGTH(J9ROMCLASS_CLASSNAME(clazz->romClass)),
+						J9UTF8_DATA(J9ROMCLASS_CLASSNAME(clazz->romClass)),
+						objectPtr,
+						*accessCount);
+					}
+
+					printf("My log obj: th=%zu, class=%.*s, ptr=%p, cnt=%u\n",
 						std::hash<std::thread::id>()(std::this_thread::get_id()),
 						J9UTF8_LENGTH(J9ROMCLASS_CLASSNAME(clazz->romClass)),
 						J9UTF8_DATA(J9ROMCLASS_CLASSNAME(clazz->romClass)),
