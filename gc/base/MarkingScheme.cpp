@@ -25,7 +25,6 @@
 #include "GlobalCollector.hpp"
 
 #include <string.h>
-#include <string>
 
 #if defined(OMR_GC_MODRON_CONCURRENT_MARK)
 #include "ConcurrentGC.hpp"
@@ -87,7 +86,6 @@ bool
 MM_MarkingScheme::initialize(MM_EnvironmentBase *env)
 {
 	_markMap = MM_MarkMap::newInstance(env, _extensions->heap->getMaximumPhysicalRange());
-	char file_name[40];
 
 	if (!_markMap) {
 		goto error_no_memory;
@@ -97,12 +95,6 @@ MM_MarkingScheme::initialize(MM_EnvironmentBase *env)
 	if (NULL == _workPackets) {
 		goto error_no_memory;
 	}
-
-	_dump_last_time = _dump_last_id = _dump_now = 0;
-	std::ignore = tmpnam(file_name);
-	// printf("My log: initialize %s, this=%p\n", file_name, this);
-	_dump_ptr.reset(fopen(file_name, "w"));
-	_dump_fout = _dump_ptr.get();
 
 	return _delegate.initialize(env, this);
 
@@ -184,25 +176,6 @@ MM_MarkingScheme::mainSetupForGC(MM_EnvironmentBase *env)
 	_workPackets->reset(env);
 
 	_delegate.mainSetupForGC(env);
-
-	auto cur_time = std::time(nullptr);
-	if (cur_time - _dump_last_time > 5)
-	{
-		_dump_now = true;
-		_dump_last_time = cur_time;
-		// printf(
-		fprintf(_dump_fout,
-			"\n My log: Dump Snapshot #%d\n", _dump_last_id++);
-		printf("\n My log: Dump Snapshot #%d\n", _dump_last_id++);
-	}
-	else
-	{
-		_dump_now = false;
-		// printf(
-		fprintf(_dump_fout,
-			"\n My log: Skipping Snapshot #%d\n", _dump_last_id);
-		printf("\n My log: Skipping Snapshot #%d\n", _dump_last_id);
-	}
 }
 
 /**

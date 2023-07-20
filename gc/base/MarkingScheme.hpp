@@ -38,18 +38,6 @@
 #include "ObjectScannerState.hpp"
 #include "WorkStack.hpp"
 
-#include <thread>
-#include <ctime>
-#include <cstdio>
-#include <memory>
-
-struct FILECloser {
-    void operator()(FILE* file) const {
-		printf("My log: filecloser\n");
-		fclose(file);
-    }
-};
-
 /**
  * @todo Provide class documentation
  */
@@ -68,13 +56,6 @@ protected:
 	MM_WorkPackets *_workPackets;
 	void *_heapBase;
 	void *_heapTop;
-
-private:
-	std::time_t _dump_last_time = 0;
-	int _dump_last_id = 0;
-	bool _dump_now = false;
-	FILE* _dump_fout = nullptr;
-	std::unique_ptr<FILE, FILECloser> _dump_ptr;
 
 public:
 
@@ -157,80 +138,6 @@ public:
 	{
 		assertSaneObjectPtr(env, objectPtr);
 
-		if (true)
-		{
-			U_32 *accessCount;
-
-			J9Class *clazz = J9GC_J9OBJECT_CLAZZ_CMP(objectPtr, env->compressObjectReferences());
-			if (clazz->accessCountOffset == (UDATA)-1)
-			{
-				assert(J9ROMCLASS_IS_ARRAY(clazz->romClass));
-				// dealing with arrays
-
-				if (env->compressObjectReferences())
-				{
-					U_32 size = ((J9IndexableObjectContiguousCompressed *)objectPtr)->size;
-					if (0 == size) accessCount = &((J9IndexableObjectDiscontiguousCompressed *)objectPtr)->accessCount;
-					else accessCount = &((J9IndexableObjectContiguousCompressed *)objectPtr)->accessCount;
-				}
-				else
-				{
-					U_32 size = ((J9IndexableObjectContiguousFull *)objectPtr)->size;
-					if (0 == size) accessCount = &((J9IndexableObjectDiscontiguousFull *)objectPtr)->accessCount;
-					else accessCount = &((J9IndexableObjectContiguousFull *)objectPtr)->accessCount;
-				}
-
-				J9UTF8* romClassName = J9ROMCLASS_CLASSNAME(((J9ArrayClass*)clazz)->componentType->romClass);
-				if (J9UTF8_LITERAL_EQUALS(J9UTF8_DATA(romClassName), J9UTF8_LENGTH(romClassName), "InnerClass") || J9UTF8_LITERAL_EQUALS(J9UTF8_DATA(romClassName), J9UTF8_LENGTH(romClassName), "MainClass"))
-				{
-					if (_dump_now) {
-					//printf(
-					fprintf(_dump_fout,
-						"My log array: th=%zu, class=%.*s, ptr=%p, cnt=%u\n",
-						std::hash<std::thread::id>()(std::this_thread::get_id()),
-						J9UTF8_LENGTH(J9ROMCLASS_CLASSNAME(((J9ArrayClass*)clazz)->componentType->romClass)),
-						J9UTF8_DATA(J9ROMCLASS_CLASSNAME(((J9ArrayClass*)clazz)->componentType->romClass)),
-						objectPtr,
-						*accessCount);
-					}
-
-					printf("My log array: th=%zu, class=%.*s, ptr=%p, cnt=%u\n",
-						std::hash<std::thread::id>()(std::this_thread::get_id()),
-						J9UTF8_LENGTH(J9ROMCLASS_CLASSNAME(((J9ArrayClass*)clazz)->componentType->romClass)),
-						J9UTF8_DATA(J9ROMCLASS_CLASSNAME(((J9ArrayClass*)clazz)->componentType->romClass)),
-						objectPtr,
-						*accessCount);
-				}
-			}
-			else
-			{
-				assert(!J9ROMCLASS_IS_ARRAY(clazz->romClass));
-				accessCount = (U_32*)((U_8 *)(objectPtr) + clazz->accessCountOffset);
-
-				J9UTF8* romClassName = J9ROMCLASS_CLASSNAME(clazz->romClass);
-				if (J9UTF8_LITERAL_EQUALS(J9UTF8_DATA(romClassName), J9UTF8_LENGTH(romClassName), "InnerClass") || J9UTF8_LITERAL_EQUALS(J9UTF8_DATA(romClassName), J9UTF8_LENGTH(romClassName), "MainClass"))
-				{
-					if (_dump_now) {
-					//printf(
-					fprintf(_dump_fout,
-						"My log obj: th=%zu, class=%.*s, ptr=%p, cnt=%u\n",
-						std::hash<std::thread::id>()(std::this_thread::get_id()),
-						J9UTF8_LENGTH(J9ROMCLASS_CLASSNAME(clazz->romClass)),
-						J9UTF8_DATA(J9ROMCLASS_CLASSNAME(clazz->romClass)),
-						objectPtr,
-						*accessCount);
-					}
-
-					printf("My log obj: th=%zu, class=%.*s, ptr=%p, cnt=%u\n",
-						std::hash<std::thread::id>()(std::this_thread::get_id()),
-						J9UTF8_LENGTH(J9ROMCLASS_CLASSNAME(clazz->romClass)),
-						J9UTF8_DATA(J9ROMCLASS_CLASSNAME(clazz->romClass)),
-						objectPtr,
-						*accessCount);
-				}
-			}
-		}
-
 		/* If bit not already set in mark map then set it */
 		if (!_markMap->atomicSetBit(objectPtr)) {
 			return false;
@@ -240,6 +147,8 @@ public:
 		if (!leafType) {
 			env->_workStack.push(env, (void *)objectPtr);
 		}
+
+		_delegate.dumpObjectCounter(objectPtr, env->compressObjectReferences());
 
 		env->_markStats._objectsMarked += 1;
 
