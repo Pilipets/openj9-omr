@@ -841,6 +841,8 @@ public:
 	bool alwaysCallReadBarrier; /**< was -Xgc:alwaysCallReadBarrier specified? */
 
 	int dumpObjCountFreq; // My log dump count frequency parameter
+	bool coldDoCountersDecay;
+	bool coldDoColdMetric;
 
 	bool _holdRandomThreadBeforeHandlingWorkUnit; /**< Whether we should randomly hold up a thread entering MM_ParallelTask::handleNextWorkUnit() */
 	uintptr_t _holdRandomThreadBeforeHandlingWorkUnitPeriod; /**< How often (in terms of number of times MM_ParallelTask::handleNextWorkUnit() is called) to randomly hold up a thread entering MM_ParallelTask::handleNextWorkUnit() */
@@ -1940,6 +1942,8 @@ public:
 		, alwaysCallWriteBarrier(false)
 		, alwaysCallReadBarrier(false)
 		, dumpObjCountFreq(0)
+		, coldDoCountersDecay(false)
+		, coldDoColdMetric(false)
 		, _holdRandomThreadBeforeHandlingWorkUnit(false)
 		, _holdRandomThreadBeforeHandlingWorkUnitPeriod(100)
 		, _forceRandomBackoutsAfterScan(false)
